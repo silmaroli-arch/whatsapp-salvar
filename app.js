@@ -265,8 +265,9 @@ function desenharLeitura() {
     if (m.sistema) return cab + `<div class="sistema">${esc(m.texto)}</div>`;
     const lado = autores.indexOf(m.autor) === 0 ? 'esq' : 'dir';
     const hora = new Date(m.data).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    const legenda = m.midia ? m.texto.split('\n').slice(1).join('\n').trim() : '';
     const corpo = m.midia
-      ? `<div class="midia" data-nome="${esc(m.midia)}">${esc(m.midia)}</div>`
+      ? `<div class="midia" data-nome="${esc(m.midia)}">${esc(m.midia)}</div>` + (legenda ? `<div class="texto">${esc(legenda)}</div>` : '')
       : `<div class="texto">${esc(m.texto)}</div>`;
     return cab + `<div class="bolha ${lado}"><b>${esc(m.autor)}</b>${corpo}<span class="hora">${hora}</span></div>`;
   }).join('');
