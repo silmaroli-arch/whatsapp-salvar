@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#128c7e">
+  <title>Salvar Mensagens</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon-192.png">
+  <link rel="apple-touch-icon" href="icon-192.png">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>Mensagens salvas</h1>
+    <div class="acoes">
+      <button id="btn-exportar" title="Baixar backup">Exportar</button>
+      <label class="botao" title="Restaurar backup">Importar<input type="file" id="arq-importar" accept=".json" hidden></label>
+    </div>
+  </header>
+
+  <main>
+    <input type="search" id="busca" placeholder="Buscar mensagens, contatos ou etiquetas…">
+
+    <details id="novo">
+      <summary>+ Adicionar manualmente</summary>
+      <form id="form-novo">
+        <input name="contato" placeholder="Contato / grupo (opcional)">
+        <textarea name="texto" placeholder="Cole a mensagem aqui" required rows="4"></textarea>
+        <input name="etiquetas" placeholder="Etiquetas separadas por vírgula (opcional)">
+        <button type="submit">Salvar</button>
+      </form>
+    </details>
+
+    <p id="contagem"></p>
+    <ul id="lista"></ul>
+    <p id="vazio" hidden>Nenhuma mensagem salva ainda. No WhatsApp, segure uma mensagem → Compartilhar → <b>Salvar Mensagens</b> (após instalar o app).</p>
+  </main>
+
+  <div id="aviso" role="status" hidden></div>
+  <script src="app.js"></script>
+</body>
+</html>
