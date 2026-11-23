@@ -1,5 +1,5 @@
-const CACHE = 'mensagens-v1';
-const ARQUIVOS = ['./', 'index.html', 'app.js', 'style.css', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png'];
+const CACHE = 'mensagens-v2';
+const ARQUIVOS = ['./', 'index.html', 'app.js', 'parser.js', 'jszip.min.js', 'style.css', 'manifest.webmanifest', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ARQUIVOS)));

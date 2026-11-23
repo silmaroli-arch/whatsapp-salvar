@@ -12,16 +12,45 @@
 </head>
 <body>
   <header>
-    <h1>Mensagens salvas</h1>
+    <h1 id="titulo">Conversas</h1>
     <div class="acoes">
-      <button id="btn-exportar" title="Baixar backup">Exportar</button>
-      <label class="botao" title="Restaurar backup">Importar<input type="file" id="arq-importar" accept=".json" hidden></label>
+      <button id="btn-exportar" title="Baixar backup de tudo">Backup</button>
+      <label class="botao" title="Restaurar backup">Restaurar<input type="file" id="arq-importar" accept=".json,application/json" hidden></label>
     </div>
   </header>
 
-  <main>
-    <input type="search" id="busca" placeholder="Buscar mensagens, contatos ou etiquetas…">
+  <nav id="abas">
+    <button data-aba="conversas" class="ativa">Conversas</button>
+    <button data-aba="mensagens">Mensagens soltas</button>
+  </nav>
 
+  <!-- ABA: CONVERSAS -->
+  <main id="aba-conversas">
+    <div id="lista-view">
+      <label class="botao grande">Importar conversa do WhatsApp
+        <input type="file" id="arq-conversa" accept=".txt,.zip,text/plain,application/zip" multiple hidden>
+      </label>
+      <p class="ajuda">No WhatsApp: abra a conversa → nome do contato → <b>Exportar conversa</b> → <b>Sem mídia</b> → <b>Salvar em Arquivos</b>. Depois use o botão acima e escolha o arquivo.</p>
+      <ul id="lista-conversas"></ul>
+      <p id="sem-conversas" class="ajuda" hidden>Nenhuma conversa importada ainda.</p>
+    </div>
+
+    <div id="leitura-view" hidden>
+      <div class="barra">
+        <button id="voltar">← Voltar</button>
+        <span id="nome-conversa"></span>
+        <button id="apagar-conversa" class="perigo">Apagar</button>
+      </div>
+      <input type="search" id="busca-conversa" placeholder="Buscar nesta conversa…">
+      <p id="info-conversa" class="ajuda"></p>
+      <div id="mensagens-conversa"></div>
+      <button id="mais" class="botao grande" hidden>Carregar mais antigas</button>
+    </div>
+  </main>
+
+  <!-- ABA: MENSAGENS SOLTAS -->
+  <main id="aba-mensagens" hidden>
+    <input type="search" id="busca" placeholder="Buscar mensagens, contatos ou etiquetas…">
     <details id="novo">
       <summary>+ Adicionar manualmente</summary>
       <form id="form-novo">
@@ -31,13 +60,14 @@
         <button type="submit">Salvar</button>
       </form>
     </details>
-
     <p id="contagem"></p>
     <ul id="lista"></ul>
-    <p id="vazio" hidden>Nenhuma mensagem salva ainda. No WhatsApp, segure uma mensagem → Compartilhar → <b>Salvar Mensagens</b> (após instalar o app).</p>
+    <p id="vazio" class="ajuda" hidden>Nenhuma mensagem solta. Elas chegam pelo atalho de compartilhar ou pelo formulário acima.</p>
   </main>
 
   <div id="aviso" role="status" hidden></div>
+  <script src="jszip.min.js"></script>
+  <script src="parser.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

@@ -23,4 +23,23 @@ li { background:var(--card); border-radius:8px; padding:12px; margin-bottom:10px
 .etiqueta { background:#128c7e22; color:var(--verde); border-radius:10px; padding:2px 8px; font-size:.75rem; }
 .botoes { margin-top:8px; display:flex; gap:8px; }
 .botoes button { background:transparent; color:var(--suave); padding:4px 8px; border:1px solid #8884; font-size:.8rem; }
+#abas { display:flex; background:var(--verde); padding:0 8px; }
+#abas button { flex:1; background:transparent; border-radius:0; color:#fffb; border-bottom:3px solid transparent; padding:10px 4px; }
+#abas button.ativa { color:#fff; border-bottom-color:#fff; font-weight:600; }
+[hidden] { display:none !important; }
+.botao.grande { display:block; text-align:center; padding:14px; font-size:1rem; margin:4px 0 8px; width:100%; }
+.ajuda { color:var(--suave); font-size:.85rem; line-height:1.4; }
+li.conversa { cursor:pointer; }
+li.conversa .nome { font-weight:600; font-size:1.05rem; margin-bottom:4px; }
+.barra { display:flex; justify-content:space-between; align-items:center; gap:8px; margin-bottom:10px; }
+.barra span { font-weight:600; flex:1; text-align:center; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.barra button { background:transparent; color:var(--verde); border:1px solid #8884; padding:6px 10px; }
+.barra button.perigo { color:#c0392b; }
+.dia { text-align:center; color:var(--suave); font-size:.75rem; margin:14px 0 8px; }
+.sistema { text-align:center; color:var(--suave); font-size:.75rem; margin:6px 12px; }
+.bolha { max-width:85%; padding:6px 10px 4px; border-radius:8px; margin-bottom:4px; background:var(--card); box-shadow:0 1px 1px #0002; }
+.bolha.dir { margin-left:auto; background:#d9fdd3; color:#111; }
+@media (prefers-color-scheme: dark) { .bolha.dir { background:#005c4b; color:#e9edef; } }
+.bolha b { display:block; font-size:.75rem; color:var(--verde); }
+.bolha .hora { display:block; text-align:right; font-size:.65rem; color:var(--suave); }
 #aviso { position:fixed; bottom:16px; left:50%; transform:translateX(-50%); background:#333; color:#fff; padding:10px 16px; border-radius:8px; }
