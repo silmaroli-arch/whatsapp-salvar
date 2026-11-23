@@ -42,4 +42,9 @@ li.conversa .nome { font-weight:600; font-size:1.05rem; margin-bottom:4px; }
 @media (prefers-color-scheme: dark) { .bolha.dir { background:#005c4b; color:#e9edef; } }
 .bolha b { display:block; font-size:.75rem; color:var(--verde); }
 .bolha .hora { display:block; text-align:right; font-size:.65rem; color:var(--suave); }
+.midia { min-height:24px; font-size:.85rem; color:var(--suave); word-break:break-all; }
+.midia.falta { font-style:italic; }
+.midia img, .midia video { max-width:100%; max-height:70vh; border-radius:6px; display:block; }
+.midia audio { width:100%; max-width:260px; }
+.midia .baixar { display:block; font-size:.75rem; margin-top:2px; }
 #aviso { position:fixed; bottom:16px; left:50%; transform:translateX(-50%); background:#333; color:#fff; padding:10px 16px; border-radius:8px; }

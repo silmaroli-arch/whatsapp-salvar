@@ -2,12 +2,14 @@
 const DB_NOME = 'mensagens-whatsapp';
 const S_MSG = 'mensagens';   // mensagens soltas
 const S_CONV = 'conversas';  // conversas importadas
+const S_MID = 'midias';      // fotos, vídeos, áudios e documentos (chave "idConversa|arquivo")
 
 function abrirDB() {
   return new Promise((ok, erro) => {
-    const req = indexedDB.open(DB_NOME, 2);
+    const req = indexedDB.open(DB_NOME, 3);
     req.onupgradeneeded = () => {
       const db = req.result;
+      if (!db.objectStoreNames.contains(S_MID)) db.createObjectStore(S_MID, { keyPath: 'k' });
       if (!db.objectStoreNames.contains(S_MSG)) db.createObjectStore(S_MSG, { keyPath: 'id', autoIncrement: true });
       if (!db.objectStoreNames.contains(S_CONV)) db.createObjectStore(S_CONV, { keyPath: 'id', autoIncrement: true });
     };
@@ -29,6 +31,20 @@ async function tx(loja, modo, fn) {
 const todas = loja => tx(loja, 'readonly', s => s.getAll());
 const gravar = (loja, v) => tx(loja, 'readwrite', s => s.put(v));
 const remover = (loja, id) => tx(loja, 'readwrite', s => s.delete(id));
+const lerMidia = k => tx(S_MID, 'readonly', s => s.get(k));
+const removerMidiasDe = id => tx(S_MID, 'readwrite', s => s.delete(IDBKeyRange.bound(`${id}|`, `${id}|￿`)));
+
+const TIPOS = {
+  image: ['jpg', 'jpeg', 'png', 'gif', 'webp', 'heic', 'heif'],
+  video: ['mp4', 'mov', 'm4v', '3gp'],
+  audio: ['opus', 'ogg', 'm4a', 'mp3', 'aac', 'wav', 'amr']
+};
+const MIME = { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif', webp: 'image/webp', heic: 'image/heic', heif: 'image/heif',
+  mp4: 'video/mp4', mov: 'video/quicktime', m4v: 'video/mp4', '3gp': 'video/3gpp', opus: 'audio/ogg; codecs=opus', ogg: 'audio/ogg',
+  m4a: 'audio/mp4', mp3: 'audio/mpeg', aac: 'audio/aac', wav: 'audio/wav', amr: 'audio/amr', pdf: 'application/pdf' };
+const extensao = n => (n.split('.').pop() || '').toLowerCase();
+const tipoDe = n => Object.keys(TIPOS).find(t => TIPOS[t].includes(extensao(n))) || 'outro';
+const base = n => n.split('/').pop();
 
 const $ = id => document.getElementById(id);
 
@@ -88,23 +104,51 @@ async function lerArquivo(arq) {
     const zip = await JSZip.loadAsync(arq);
     const txt = Object.values(zip.files).find(f => !f.dir && /\.txt$/i.test(f.name));
     if (!txt) throw new Error('O .zip não contém um arquivo .txt de conversa.');
-    return txt.async('string');
+    return { texto: await txt.async('string'), zip };
   }
-  return arq.text();
+  return { texto: await arq.text(), zip: null };
+}
+
+// Descobre qual arquivo de mídia a mensagem representa (iPhone: <anexo: X>, Android: X (arquivo anexado))
+function nomeDaMidia(texto, nomes) {
+  const l = texto.split('\n')[0].trim();
+  const m = /^<(?:anexo|attached):\s*(.+)>$/i.exec(l) || /^(.+?)\s*\((?:arquivo anexado|file attached)\)$/i.exec(l);
+  return m && nomes.has(m[1].trim()) ? m[1].trim() : null;
+}
+
+async function guardarMidias(idConversa, zip, nomes) {
+  const arquivos = Object.values(zip.files).filter(f => !f.dir && !/\.txt$/i.test(f.name));
+  let n = 0;
+  for (const f of arquivos) {
+    const nome = base(f.name);
+    const blob = await f.async('blob');
+    await gravar(S_MID, { k: `${idConversa}|${nome}`, nome, blob: new Blob([blob], { type: MIME[extensao(nome)] || 'application/octet-stream' }) });
+    if (++n % 10 === 0 || n === arquivos.length) aviso(`Guardando mídia ${n}/${arquivos.length}…`);
+  }
+  return n;
 }
 
 async function importarConversas(arquivos) {
   for (const arq of arquivos) {
     try {
-      const novas = Parser.lerConversa(await lerArquivo(arq));
+      if (arq.size > 1.5 * 1024 ** 3 && !confirm('Este arquivo é muito grande e pode travar o navegador. Continuar?')) continue;
+      const { texto, zip } = await lerArquivo(arq);
+      const novas = Parser.lerConversa(texto);
       if (!novas.length) { aviso(`Nenhuma mensagem reconhecida em ${arq.name}`); continue; }
+      const nomes = new Set(zip ? Object.values(zip.files).filter(f => !f.dir && !/\.txt$/i.test(f.name)).map(f => base(f.name)) : []);
+      for (const m of novas) if (!m.sistema) { const x = nomeDaMidia(m.texto, nomes); if (x) m.midia = x; }
       const nome = Parser.nomeDoArquivo(arq.name);
       const existente = conversas.find(c => c.nome.toLowerCase() === nome.toLowerCase());
       let conv, adicionadas;
       if (existente) {
-        // Reimportar a mesma conversa: junta sem duplicar
-        const vistas = new Set(existente.mensagens.map(chave));
-        const extras = novas.filter(m => !vistas.has(chave(m)));
+        // Reimportar a mesma conversa: junta sem duplicar (e liga mídia a mensagens antigas)
+        const porChave = new Map(existente.mensagens.map(m => [chave(m), m]));
+        const extras = [];
+        for (const m of novas) {
+          const antiga = porChave.get(chave(m));
+          if (!antiga) extras.push(m);
+          else if (m.midia && !antiga.midia) antiga.midia = m.midia;
+        }
         adicionadas = extras.length;
         conv = { ...existente, mensagens: existente.mensagens.concat(extras).sort((a, b) => a.data - b.data) };
       } else {
@@ -114,9 +158,15 @@ async function importarConversas(arquivos) {
       conv.inicio = conv.mensagens[0].data;
       conv.fim = conv.mensagens[conv.mensagens.length - 1].data;
       conv.importadoEm = Date.now();
-      await gravar(S_CONV, conv);
+      const idConv = await gravar(S_CONV, conv);
+      let midias = 0;
+      if (zip && nomes.size) {
+        if (navigator.storage?.persist) navigator.storage.persist().catch(() => {});
+        midias = await guardarMidias(idConv, zip, nomes);
+      }
       await recarregarConversas();
-      aviso(existente ? `${nome}: ${adicionadas} mensagens novas` : `${nome}: ${adicionadas} mensagens importadas`);
+      const extra = midias ? ` e ${midias} arquivos de mídia` : '';
+      aviso(existente ? `${nome}: ${adicionadas} mensagens novas${extra}` : `${nome}: ${adicionadas} mensagens${extra} importadas`);
     } catch (e) {
       aviso(`Erro em ${arq.name}: ${e.message || 'arquivo inválido'}`);
     }
@@ -143,6 +193,7 @@ $('lista-conversas').addEventListener('click', e => {
 });
 
 $('voltar').addEventListener('click', () => {
+  liberarUrls();
   aberta = null;
   $('leitura-view').hidden = true;
   $('lista-view').hidden = false;
@@ -151,6 +202,7 @@ $('voltar').addEventListener('click', () => {
 $('apagar-conversa').addEventListener('click', async () => {
   if (!aberta || !confirm(`Apagar a conversa "${aberta.nome}" (${aberta.mensagens.length} mensagens)?`)) return;
   await remover(S_CONV, aberta.id);
+  await removerMidiasDe(aberta.id);
   aberta = null;
   $('voltar').click();
   await recarregarConversas();
@@ -158,6 +210,42 @@ $('apagar-conversa').addEventListener('click', async () => {
 
 $('busca-conversa').addEventListener('input', () => { limite = 200; desenharLeitura(); });
 $('mais').addEventListener('click', () => { limite += 200; desenharLeitura(); });
+
+// Mídia é carregada só quando aparece na tela
+let urls = [];
+let observador = null;
+
+function liberarUrls() {
+  if (observador) observador.disconnect();
+  urls.forEach(u => URL.revokeObjectURL(u));
+  urls = [];
+}
+
+async function montarMidia(el) {
+  const nome = el.dataset.nome;
+  const rec = aberta && await lerMidia(`${aberta.id}|${nome}`);
+  if (!rec) { el.textContent = `[mídia não disponível: ${nome}]`; el.classList.add('falta'); return; }
+  const url = URL.createObjectURL(rec.blob);
+  urls.push(url);
+  const t = tipoDe(nome);
+  if (t === 'image') el.innerHTML = `<a href="${url}" target="_blank"><img src="${url}" alt="${esc(nome)}"></a>`;
+  else if (t === 'video') el.innerHTML = `<video src="${url}" controls preload="metadata" playsinline></video>`;
+  else if (t === 'audio') el.innerHTML = `<audio src="${url}" controls preload="none"></audio>`;
+  else el.innerHTML = `<a href="${url}" download="${esc(nome)}" target="_blank">📎 ${esc(nome)}</a>`;
+  if (t === 'audio' || t === 'video') el.insertAdjacentHTML('beforeend', `<a class="baixar" href="${url}" download="${esc(nome)}">baixar</a>`);
+}
+
+function prepararMidias() {
+  liberarUrls();
+  const alvos = document.querySelectorAll('#mensagens-conversa .midia[data-nome]');
+  if (!alvos.length) return;
+  observador = new IntersectionObserver(es => es.forEach(e => {
+    if (!e.isIntersecting) return;
+    observador.unobserve(e.target);
+    montarMidia(e.target);
+  }), { rootMargin: '400px' });
+  alvos.forEach(el => observador.observe(el));
+}
 
 function desenharLeitura() {
   if (!aberta) return;
@@ -177,8 +265,12 @@ function desenharLeitura() {
     if (m.sistema) return cab + `<div class="sistema">${esc(m.texto)}</div>`;
     const lado = autores.indexOf(m.autor) === 0 ? 'esq' : 'dir';
     const hora = new Date(m.data).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-    return cab + `<div class="bolha ${lado}"><b>${esc(m.autor)}</b><div class="texto">${esc(m.texto)}</div><span class="hora">${hora}</span></div>`;
+    const corpo = m.midia
+      ? `<div class="midia" data-nome="${esc(m.midia)}">${esc(m.midia)}</div>`
+      : `<div class="texto">${esc(m.texto)}</div>`;
+    return cab + `<div class="bolha ${lado}"><b>${esc(m.autor)}</b>${corpo}<span class="hora">${hora}</span></div>`;
   }).join('');
+  prepararMidias();
 
   $('info-conversa').textContent = q
     ? `${filtradas.length} resultado(s)`
